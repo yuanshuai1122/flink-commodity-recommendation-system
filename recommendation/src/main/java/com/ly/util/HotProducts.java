@@ -2,7 +2,6 @@ package com.ly.util;
 
 import com.ly.client.HbaseClient;
 import com.ly.entity.TopEntity;
-import com.sun.jmx.snmp.Timestamp;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -10,6 +9,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -40,7 +43,7 @@ public class HotProducts extends KeyedProcessFunction<Tuple, TopEntity, String> 
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
         super.onTimer(timestamp, ctx, out);
         List<TopEntity> allProduct = new ArrayList<>();
-        for(TopEntity topEntity : listState.get()) {
+        for (TopEntity topEntity : listState.get()) {
             allProduct.add(topEntity);
         }
         listState.clear();
@@ -53,22 +56,27 @@ public class HotProducts extends KeyedProcessFunction<Tuple, TopEntity, String> 
 
         StringBuilder sb = new StringBuilder();
         sb.append("===============\n");
-        sb.append("时间:\t").append(new Timestamp(timestamp-1)).append("\n");
-       try {
-           for(int i = 0; i < topSize && i < allProduct.size(); i++) {
-               TopEntity topEntity = allProduct.get(i);
-               sb.append("No").append(i).append(":")
-                       .append("商品ID=").append(topEntity.getProductId())
-                       .append(" 点击量").append(topEntity.getActionTimes())
-                       .append("\n");
-               HbaseClient.putData("onlineHot", String.valueOf(i), "p"
-                       , "productId", String.valueOf(topEntity.getProductId()) );
-               HbaseClient.putData("onlineHot", String.valueOf(i), "p"
-                       , "count", String.valueOf(topEntity.getActionTimes()));
-           }
-       } catch (Exception e) {
-           e.printStackTrace();
-       }
+
+        // 使用 LocalDateTime 进行时间格式化
+        LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp - 1), ZoneId.systemDefault());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        sb.append("时间:\t").append(dateTime.format(formatter)).append("\n");
+
+        try {
+            for (int i = 0; i < topSize && i < allProduct.size(); i++) {
+                TopEntity topEntity = allProduct.get(i);
+                sb.append("No").append(i).append(":")
+                        .append("商品ID=").append(topEntity.getProductId())
+                        .append(" 点击量").append(topEntity.getActionTimes())
+                        .append("\n");
+                HbaseClient.putData("onlineHot", String.valueOf(i), "p",
+                        "productId", String.valueOf(topEntity.getProductId()));
+                HbaseClient.putData("onlineHot", String.valueOf(i), "p",
+                        "count", String.valueOf(topEntity.getActionTimes()));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         sb.append("===============\n");
         out.collect(sb.toString());
     }

@@ -4,7 +4,7 @@ package com.ly.recommend_backend.service;
 import com.ly.recommend_backend.dao.ProductInterface;
 import com.ly.recommend_backend.util.HbaseClient;
 import com.ly.recommend_backend.entity.ProductEntity;
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,7 @@ public class RecommendService {
             List<Map.Entry> row = HbaseClient.getRow(tableName, productId);
             if(row != null) {
                 double count = (double) row.get(0).getValue();
-                list.add(new Pair<String, Double>(productId, count));
+                list.add(Pair.of(productId, count));
             }
         }
         // 排序
